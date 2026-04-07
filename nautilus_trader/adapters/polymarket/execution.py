@@ -817,6 +817,31 @@ class PolymarketExecutionClient(LiveExecutionClient):
             return False
         return instrument.info.get("neg_risk", False)
 
+    def _get_tick_size_for_instrument(self, instrument) -> float | None:
+        if instrument is None or instrument.info is None:
+            return None
+
+        tick_size = instrument.info.get("minimum_tick_size")
+        if tick_size is None:
+            gamma_original = instrument.info.get("_gamma_original", {})
+            tick_size = gamma_original.get("orderPriceMinTickSize")
+
+        return float(tick_size) if tick_size is not None else None
+
+    def _get_fee_rate_bps_for_instrument(self, instrument, *, is_market_order: bool) -> int | None:
+        if instrument is None or instrument.info is None:
+            return None
+
+        info = instrument.info
+        fee_key = "taker_base_fee" if is_market_order else "maker_base_fee"
+        fee_rate_bps = info.get(fee_key)
+        if fee_rate_bps is None:
+            gamma_original = info.get("_gamma_original", {})
+            gamma_fee_key = "takerBaseFee" if is_market_order else "makerBaseFee"
+            fee_rate_bps = gamma_original.get(gamma_fee_key)
+
+        return int(fee_rate_bps) if fee_rate_bps is not None else None
+
     async def _query_account(self, _command: QueryAccount) -> None:
         # Specific account ID (sub account) not yet supported
         await self._update_account_state()
@@ -1504,7 +1529,13 @@ class PolymarketExecutionClient(LiveExecutionClient):
         )
 
         neg_risk = self._get_neg_risk_for_instrument(instrument)
-        options = PartialCreateOrderOptions(neg_risk=neg_risk)
+        tick_size = self._get_tick_size_for_instrument(instrument)
+        fee_rate_bps = self._get_fee_rate_bps_for_instrument(instrument, is_market_order=True)
+        options = PartialCreateOrderOptions(
+            tick_size=tick_size,
+            neg_risk=neg_risk,
+            fee_rate_bps=fee_rate_bps,
+        )
         signing_start = self._clock.timestamp()
         signed_order = await asyncio.to_thread(
             self._http_client.create_market_order,
@@ -1565,7 +1596,13 @@ class PolymarketExecutionClient(LiveExecutionClient):
         )
 
         neg_risk = self._get_neg_risk_for_instrument(instrument)
-        options = PartialCreateOrderOptions(neg_risk=neg_risk)
+        tick_size = self._get_tick_size_for_instrument(instrument)
+        fee_rate_bps = self._get_fee_rate_bps_for_instrument(instrument, is_market_order=False)
+        options = PartialCreateOrderOptions(
+            tick_size=tick_size,
+            neg_risk=neg_risk,
+            fee_rate_bps=fee_rate_bps,
+        )
         signing_start = self._clock.timestamp()
         signed_order = await asyncio.to_thread(
             self._http_client.create_order,
