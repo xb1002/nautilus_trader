@@ -836,6 +836,46 @@ class PolymarketExecutionClient(LiveExecutionClient):
             return False
         return instrument.info.get("neg_risk", False)
 
+    def _get_tick_size_for_instrument(self, instrument) -> str | None:
+        if instrument is None or instrument.info is None:
+            return None
+
+        tick_size = instrument.info.get("minimum_tick_size")
+        if tick_size is None:
+            gamma_original = instrument.info.get("_gamma_original") or {}
+            tick_size = gamma_original.get("orderPriceMinTickSize")
+
+        return str(tick_size) if tick_size is not None else None
+
+    def _get_fee_rate_bps_for_instrument(self, instrument, *, is_market_order: bool) -> int | None:
+        if instrument is None or instrument.info is None:
+            return None
+
+        info = instrument.info
+        fee_key = "taker_base_fee" if is_market_order else "maker_base_fee"
+        fee_rate_bps = info.get(fee_key)
+        if fee_rate_bps is None or fee_rate_bps == 0:
+            gamma_original = info.get("_gamma_original") or {}
+            gamma_fee_key = "takerBaseFee" if is_market_order else "makerBaseFee"
+            fee_rate_bps = gamma_original.get(gamma_fee_key)
+
+        return int(fee_rate_bps) if fee_rate_bps is not None else None
+
+    def _create_order_options_for_instrument(
+        self,
+        instrument,
+        *,
+        is_market_order: bool,
+    ) -> PartialCreateOrderOptions:
+        return PartialCreateOrderOptions(
+            tick_size=self._get_tick_size_for_instrument(instrument),
+            neg_risk=self._get_neg_risk_for_instrument(instrument),
+            fee_rate_bps=self._get_fee_rate_bps_for_instrument(
+                instrument,
+                is_market_order=is_market_order,
+            ),
+        )
+
     async def _query_account(self, _command: QueryAccount) -> None:
         # Specific account ID (sub account) not yet supported
         await self._update_account_state()
@@ -1320,10 +1360,16 @@ class PolymarketExecutionClient(LiveExecutionClient):
             )
 
         # Submit batch
+        post_start = self._clock.timestamp()
         await self._post_signed_orders_batch(
             signed_orders,
             signed_orders_args,
             post_only=post_only,
+        )
+        self._log.info(
+            f"Posted {len(signed_orders)} Polymarket orders batch in "
+            f"{self._clock.timestamp() - post_start:.3f}s",
+            LogColor.BLUE,
         )
 
     async def _sign_orders_for_batch(
@@ -1357,8 +1403,10 @@ class PolymarketExecutionClient(LiveExecutionClient):
                     builder_code=POLYMARKET_NAUTILUS_BUILDER_CODE,
                 )
 
-                neg_risk = self._get_neg_risk_for_instrument(instrument)
-                options = PartialCreateOrderOptions(neg_risk=neg_risk)
+                options = self._create_order_options_for_instrument(
+                    instrument,
+                    is_market_order=False,
+                )
 
                 signed_order = await asyncio.to_thread(
                     self._http_client.create_order,
@@ -1569,8 +1617,7 @@ class PolymarketExecutionClient(LiveExecutionClient):
             builder_code=POLYMARKET_NAUTILUS_BUILDER_CODE,
         )
 
-        neg_risk = self._get_neg_risk_for_instrument(instrument)
-        options = PartialCreateOrderOptions(neg_risk=neg_risk)
+        options = self._create_order_options_for_instrument(instrument, is_market_order=True)
         signing_start = self._clock.timestamp()
         signed_order = await asyncio.to_thread(
             self._http_client.create_market_order,
@@ -1596,11 +1643,16 @@ class PolymarketExecutionClient(LiveExecutionClient):
             base_qty_value = taker_amount / 1e6
             base_quantity = Quantity(base_qty_value, instrument.size_precision)
 
+        post_start = self._clock.timestamp()
         await self._post_signed_order(
             order,
             signed_order,
             order_type_override=PolyOrderType.FOK,
             base_quantity=base_quantity,
+        )
+        self._log.info(
+            f"Posted Polymarket market order in {self._clock.timestamp() - post_start:.3f}s",
+            LogColor.BLUE,
         )
 
     async def _submit_limit_order(self, command: SubmitOrder, instrument) -> None:
@@ -1632,8 +1684,7 @@ class PolymarketExecutionClient(LiveExecutionClient):
             builder_code=POLYMARKET_NAUTILUS_BUILDER_CODE,
         )
 
-        neg_risk = self._get_neg_risk_for_instrument(instrument)
-        options = PartialCreateOrderOptions(neg_risk=neg_risk)
+        options = self._create_order_options_for_instrument(instrument, is_market_order=False)
         signing_start = self._clock.timestamp()
         signed_order = await asyncio.to_thread(
             self._http_client.create_order,
@@ -1650,7 +1701,12 @@ class PolymarketExecutionClient(LiveExecutionClient):
             ts_event=self._clock.timestamp_ns(),
         )
 
+        post_start = self._clock.timestamp()
         await self._post_signed_order(order, signed_order, post_only=order.is_post_only)
+        self._log.info(
+            f"Posted Polymarket limit order in {self._clock.timestamp() - post_start:.3f}s",
+            LogColor.BLUE,
+        )
 
     async def _post_signed_order(
         self,

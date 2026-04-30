@@ -225,6 +225,35 @@ class TestPolymarketExecutionClient:
 
         return
 
+    def test_create_order_options_for_instrument_uses_cached_market_info(self):
+        instrument = MagicMock()
+        instrument.info = {
+            "minimum_tick_size": 0.001,
+            "maker_base_fee": 0,
+            "taker_base_fee": 0,
+            "neg_risk": True,
+            "_gamma_original": {
+                "makerBaseFee": "11",
+                "takerBaseFee": "22",
+            },
+        }
+
+        market_options = self.exec_client._create_order_options_for_instrument(
+            instrument,
+            is_market_order=True,
+        )
+        limit_options = self.exec_client._create_order_options_for_instrument(
+            instrument,
+            is_market_order=False,
+        )
+
+        assert market_options.tick_size == "0.001"
+        assert market_options.neg_risk is True
+        assert market_options.fee_rate_bps == 22
+        assert limit_options.tick_size == "0.001"
+        assert limit_options.neg_risk is True
+        assert limit_options.fee_rate_bps == 11
+
     def _setup_test_order_with_venue_id(
         self,
         venue_order_id_str: str,

@@ -51,6 +51,9 @@ requires = [
 ]
 build-backend = "poetry.core.masonry.api"
 
+[tool.uv.sources]
+py-clob-client-v2 = { path = "../py-clob-client-v2", editable = true }
+
 [tool.poetry]
 include = [
   # Rust source must be included in the source distributions
