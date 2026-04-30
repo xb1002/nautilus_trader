@@ -1689,7 +1689,7 @@ requires-dist = [
     { name = "plotly", marker = "extra == 'visualization'", specifier = ">=6.7.0,<7.0.0" },
     { name = "portion", specifier = ">=2.6.1" },
     { name = "protobuf", marker = "python_full_version < '3.14' and extra == 'ib'", specifier = "==5.29.5" },
-    { name = "py-clob-client-v2", marker = "extra == 'polymarket'", editable = "../py-clob-client-v2" },
+    { name = "py-clob-client-v2", marker = "extra == 'polymarket'", git = "https://github.com/xb1002/py-clob-client-v2.git?branch=main" },
     { name = "pyarrow", specifier = ">=23.0.1" },
     { name = "pytz", specifier = ">=2026.1.0" },
     { name = "simplejson", marker = "extra == 'visualization'", specifier = "==3.20.2" },
@@ -2147,7 +2147,7 @@ wheels = [
 [[package]]
 name = "py-clob-client-v2"
 version = "1.0.0"
-source = { editable = "../py-clob-client-v2" }
+source = { git = "https://github.com/xb1002/py-clob-client-v2.git?branch=main#0089a57a1780d126a06dc3906a05787ac81303c5" }
 dependencies = [
     { name = "coincurve" },
     { name = "eth-account" },
@@ -2155,16 +2155,6 @@ dependencies = [
     { name = "httpx", extra = ["http2"] },
     { name = "poly-eip712-structs" },
     { name = "py-order-utils" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "coincurve", specifier = ">=21.0.0" },
-    { name = "eth-account", specifier = ">=0.13.0" },
-    { name = "eth-utils", specifier = ">=4.1.1" },
-    { name = "httpx", extras = ["http2"], specifier = ">=0.27.0" },
-    { name = "poly-eip712-structs", specifier = ">=0.0.1" },
-    { name = "py-order-utils", specifier = ">=0.3.2" },
 ]
 
 [[package]]

@@ -52,7 +52,7 @@ requires = [
 build-backend = "poetry.core.masonry.api"
 
 [tool.uv.sources]
-py-clob-client-v2 = { path = "../py-clob-client-v2", editable = true }
+py-clob-client-v2 = { git = "https://github.com/xb1002/py-clob-client-v2.git", branch = "main" }
 
 [tool.poetry]
 include = [
