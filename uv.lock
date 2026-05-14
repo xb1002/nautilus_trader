@@ -2147,7 +2147,7 @@ wheels = [
 [[package]]
 name = "py-clob-client-v2"
 version = "1.0.0"
-source = { git = "https://github.com/xb1002/py-clob-client-v2.git?branch=main#0089a57a1780d126a06dc3906a05787ac81303c5" }
+source = { git = "https://github.com/xb1002/py-clob-client-v2.git?branch=main#ffe1bbcdbae0e682f2aeaf7d1d973f028c52a1ff" }
 dependencies = [
     { name = "coincurve" },
     { name = "eth-account" },
